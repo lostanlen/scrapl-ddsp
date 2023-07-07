@@ -48,7 +48,8 @@ def generate_chirp_texture(
     envelope = torch.tensor(tukey(event_length))
     patch_zip = zip(event_ids, onsets, amplitudes, frequencies)
     for event_id, onset, amplitude, frequency in patch_zip:
-        chirp = torch.sin(frequency / (gamma*np.log(2)) * (2 ** (gamma*time) - 1))
+        chirp_phase = torch.expm1(gamma*torch.log(2)*time) / (gamma*torch.log(2))
+        chirp = torch.sin(frequency * chirp_phase)
         offset = onset + event_length
         X[onset:offset, event_id] = chirp * amplitude * envelope
 
