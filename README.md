@@ -1,2 +1,2 @@
 # scrapl-ddsp
-Scattering with Random Paths as Loss for DDSP
+Scattering with Random Paths as Loss for Differentiable Digital Signal Processing
