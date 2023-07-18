@@ -92,10 +92,12 @@ class EffNet(pl.LightningModule):
 
 
 class ChirpTextureData(Dataset):
-    def __init__(self, df):
+    def __init__(self, df, seed):
         super().__init__()
 
         self.df = df
+        self.seed = seed
+
         self.J = 6
         self.Q = 24
         self.sr = 2**13
@@ -137,6 +139,7 @@ class ChirpTextureData(Dataset):
             n_events=self.n_events,
             Q=self.Q,
             hop_length=self.hop_length,
+            seed=self.seed,
         )
         U = self.cqt_from_x(x)
         return {'feature': U, 'density': theta_density, 'slope': theta_slope}
@@ -164,13 +167,13 @@ class ChirpTextureDataModule(pl.LightningDataModule):
         df["fold"] = folds[shuffling_idx]
 
         train_df = df[df["fold"] < (n_folds - 2)]
-        self.train_ds = ChirpTextureData(train_df)
+        self.train_ds = ChirpTextureData(train_df, seed=None)
 
         val_df = df[df["fold"] == (n_folds - 2)]
-        self.val_ds = ChirpTextureData(val_df)
+        self.val_ds = ChirpTextureData(val_df, seed=42)
         
         test_df = df[df["fold"] > (n_folds - 2)]
-        self.test_ds = ChirpTextureData(test_df)
+        self.test_ds = ChirpTextureData(test_df, seed=42)
 
         self.batch_size = batch_size
 
