@@ -63,7 +63,7 @@ class EffNet(pl.LightningModule):
         slope = torch.tanh(x[:, 1])
         return {"density": density, "slope": slope}
     
-    def step(self, batch, subset, batch_idx):
+    def step(self, batch, subset):
         U = batch["feature"].to(self.current_device)
         density = batch["density"].to(self.current_device)
         slope = batch["slope"].to(self.current_device)
@@ -89,13 +89,13 @@ class EffNet(pl.LightningModule):
         return {"loss": loss}
     
     def training_step(self, batch, batch_idx):
-        return self.step(batch, 'train', batch_idx)
+        return self.step(batch, 'train')
     
     def validation_step(self, batch, batch_idx):
-        return self.step(batch, 'val', batch_idx)
+        return self.step(batch, 'val')
     
     def test_step(self, batch, batch_idx):
-        return self.step(batch, 'test', batch_idx)
+        return self.step(batch, 'test')
     
     def on_train_epoch_start(self):
         self.train_outputs = []
@@ -194,7 +194,6 @@ class ChirpTextureDataModule(pl.LightningDataModule):
         self.df = df
 
     def setup(self, stage=None):
-
         train_df = self.df[self.df["fold"] < (self.n_folds - 2)]
         self.train_ds = ChirpTextureData(train_df, seed=None)
 
