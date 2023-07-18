@@ -1,8 +1,8 @@
 import auraloss
 import itertools
-
 import loss
 import metrics
+from nnAudio.features import CQT
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
@@ -11,6 +11,8 @@ from torch import nn
 from torch import functional as F
 from torch.utils.data import Dataset, DataLoader
 import torchvision
+
+import synth
 
 
 class EffNet(pl.LightningModule):
@@ -64,8 +66,58 @@ class EffNet(pl.LightningModule):
         return x
 
 
+class ChirpTextureData(Dataset):
+    def __init__(self, df):
+        super().__init__()
+
+        self.df = df
+        self.J = 6
+        self.Q = 24
+        self.sr = 2**13
+        self.hop_length = 2**6
+
+        self.cqt_epsilon = 1e-3
+        self.duration = 4
+        self.event_duration = 2**(-4)
+        self.fmin = 2**8
+        self.fmax = 2**11
+        self.n_events = 2**6
+     
+        # define CQT closure
+        cqt_params = {
+            'sr': self.sr,
+            'n_bins': self.J * self.Q,
+            'hop_length': self.hop_length,
+            'fmin': (0.4*cqt_params['sr']) / (2**self.J)
+        }   
+        self.cqt_from_x = CQT(**cqt_params).cuda()
+
+    def __getitem__(self, idx):
+        theta_density = self.df.iloc[idx]["density"]
+        theta_slope = self.df.iloc[idx]["slope"]
+
+        x = synth.generate_chirp_texture(
+            theta_density,
+            theta_slope,
+            duration=self.duration,
+            event_duration=self.event_duration,
+            sr=self.sr,
+            fmin=self.fmin,
+            fmax=self.fmax,
+            n_events=self.n_events,
+            Q=self.Q,
+            hop_length=self.hop_length,
+        )
+        U = self.cqt_from_x(x)
+        return {'feature': U, 'density': theta_density, 'slope': theta_slope}
+
+    def cqt_from_x(self, x):
+        CQT_x = self.cqt_from_x(x).abs()
+        return torch.log1p(CQT_x / self.cqt_epsilon)
+        
+
 class ChirpTextureDataModule(pl.LightningDataModule):
-    def __init__(self, *, n_densities, n_slopes, n_folds, J, Q, sr, batch_size):
+    def __init__(self, *, n_densities, n_slopes, n_folds, batch_size):
         slopes = torch.linspace(-1, 1, n_slopes + 2)[1:-1]
         densities = torch.linspace(0, 1, n_densities + 2)[1:-1]
 
@@ -74,15 +126,17 @@ class ChirpTextureDataModule(pl.LightningDataModule):
 
         folds = torch.linspace(0, len(df), n_folds + 1).int()
         shuffling_idx = np.random.RandomState(seed=42).permutation(10)
-        df["subset"] = folds[shuffling_idx]
+        df["fold"] = folds[shuffling_idx]
 
-        self.train_df = df[df["subset"] < (n_folds - 2)]
-        self.val_df = df[df["subset"] == (n_folds - 2)]
-        self.test_df = df[df["subset"] == (n_folds - 1)]
+        train_df = df[df["fold"] < (n_folds - 2)]
+        self.train_ds = ChirpTextureData(train_df)
 
-        self.J = J
-        self.Q = Q
-        self.sr = sr
+        val_df = df[df["fold"] == (n_folds - 2)]
+        self.val_ds = ChirpTextureData(val_df)
+        
+        test_df = df[df["fold"] == (n_folds - 1)]
+        self.test_ds = ChirpTextureData(test_df)
+
         self.batch_size = batch_size
 
     def train_dataloader(self):
