@@ -126,11 +126,13 @@ class ChirpTextureDataModule(pl.LightningDataModule):
         slopes = torch.linspace(-1, 1, n_slopes + 2)[1:-1]
         densities = torch.linspace(0, 1, n_densities + 2)[1:-1]
 
-        thetas = list(itertools.product(slopes, densities))
-        df = pd.DataFrame(thetas, columns=["slope", "density"])
+        thetas = list(itertools.product(densities, slopes))
+        df = pd.DataFrame(thetas, columns=["density", "slope"])
 
-        folds = torch.linspace(0, len(df), n_folds + 1).int()
-        shuffling_idx = np.random.RandomState(seed=42).permutation(10)
+        folds = torch.linspace(0, n_folds, len(df)).int()
+        n_thetas = len(thetas)
+        random_state = np.random.RandomState(seed=42)
+        shuffling_idx = random_state.permutation(n_thetas)
         df["fold"] = folds[shuffling_idx]
 
         train_df = df[df["fold"] < (n_folds - 2)]
@@ -139,7 +141,7 @@ class ChirpTextureDataModule(pl.LightningDataModule):
         val_df = df[df["fold"] == (n_folds - 2)]
         self.val_ds = ChirpTextureData(val_df)
         
-        test_df = df[df["fold"] == (n_folds - 1)]
+        test_df = df[df["fold"] > (n_folds - 2)]
         self.test_ds = ChirpTextureData(test_df)
 
         self.batch_size = batch_size
