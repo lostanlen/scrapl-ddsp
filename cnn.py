@@ -39,8 +39,8 @@ class EffNet(pl.LightningModule):
 
         self.save_path = save_path
         self.val_loss = None
-        self.metric_macro = metrics.JTFSloss()
-        self.metric_mss = metrics.MSSloss()
+        #self.metric_macro = metrics.JTFSloss()
+        #self.metric_mss = metrics.MSSloss()
         self.monitor_valloss = torch.inf
         self.current_device = "cuda" if torch.cuda.is_available() else "cpu"
         self.best_params = self.parameters
@@ -48,10 +48,11 @@ class EffNet(pl.LightningModule):
 
         self.test_preds = []
         self.test_gts = []
-
         self.train_outputs = []
         self.test_outputs = []
         self.val_outputs = []
+
+        self.optimizer = self.configure_optimizers()
 
     def forward(self, input_tensor):
         input_tensor = input_tensor.unsqueeze(1)
@@ -80,6 +81,9 @@ class EffNet(pl.LightningModule):
             self.log("train_loss", loss, prog_bar=True)
         elif subset == 'test':
             self.test_outputs.append(loss)
+            self.test_preds.append(theta_pred)
+            theta_ref = {'density': density, 'slope': slope}
+            self.test_gts.append(theta_ref)
         elif subset == 'val':
             self.val_outputs.append(loss)
         return {"loss": loss}
@@ -92,6 +96,19 @@ class EffNet(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         return self.step(batch, 'test', batch_idx)
+    
+    def on_train_epoch_start(self):
+        self.train_outputs = []
+        self.test_outputs = []
+        self.val_outputs = []
+        self.log("lr", self.optimizer.param_groups[-1]['lr'])
+
+    def on_train_epoch_end(self):
+        avg_loss = torch.tensor(self.train_outputs).mean()
+        self.log('train_loss', avg_loss, prog_bar=True)
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=1e-3)
     
 
 class ChirpTextureData(Dataset):
@@ -157,6 +174,8 @@ class ChirpTextureData(Dataset):
 
 class ChirpTextureDataModule(pl.LightningDataModule):
     def __init__(self, *, n_densities, n_slopes, n_folds, batch_size):
+        super().__init__() 
+
         self.n_densities = n_densities
         self.n_slopes = n_slopes
         self.n_folds = n_folds
