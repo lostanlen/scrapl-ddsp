@@ -37,8 +37,12 @@ def generate_chirp_texture(
     fmax, 
     n_events,
     Q,
-    hop_length     
+    hop_length,
+    seed,
 ):
+    # Set random seed
+    random_state = np.RandomState(seed)
+
     # Define constant log(2)
     const_log2 = torch.log(torch.tensor(2.0))
 
@@ -51,14 +55,15 @@ def generate_chirp_texture(
     # Draw onsets at random
     chirp_duration = 2 * event_duration / (torch.abs(theta_slope) + 0.25)
     chirp_length = torch.tensor(chirp_duration * sr).type(torch.int64)
-    rand_onsets = torch.rand(n_events)
+    rand_onsets = random_state.rand(n_events)
     onsets = rand_onsets * (duration*sr/2-chirp_length) + duration * sr / 4
     onsets = torch.floor(onsets).type(torch.int64)
 
     # Draw frequencies at random
     log2_fmin = torch.log2(torch.tensor(fmin))
     log2_fmax = torch.log2(torch.tensor(fmax))
-    log2_frequencies = log2_fmin + torch.rand(n_events) * (log2_fmax-log2_fmin)
+    rand_pitches = random_state.rand(n_events)
+    log2_frequencies = log2_fmin + rand_pitches * (log2_fmax-log2_fmin)
     frequencies = torch.pow(2.0, log2_frequencies)
 
     # Generate events one by one
