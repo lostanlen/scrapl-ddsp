@@ -38,15 +38,11 @@ class EffNet(pl.LightningModule):
         # TODO: VGGish loss
 
         self.save_path = save_path
-
         self.val_loss = None
-
-        self.metric_macro = metrics.JTFSloss(self.scaler)
-        self.metric_mss = metrics.MSSloss(self.scaler)
-
+        self.metric_macro = metrics.JTFSloss()
+        self.metric_mss = metrics.MSSloss()
         self.monitor_valloss = torch.inf
         self.current_device = "cuda" if torch.cuda.is_available() else "cpu"
-
         self.best_params = self.parameters
         self.epoch = 0
 
@@ -66,7 +62,7 @@ class EffNet(pl.LightningModule):
         slope = torch.tanh(x[:, 1])
         return {"density": density, "slope": slope}
     
-    def step(self, batch, fold, batch_idx):
+    def step(self, batch, subset, batch_idx):
         U = batch["feature"].to(self.current_device)
         density = batch["density"].to(self.current_device)
         slope = batch["slope"].to(self.current_device)
@@ -79,17 +75,24 @@ class EffNet(pl.LightningModule):
             slope_loss = F.mse_loss(slope_pred, slope)
             loss = density_loss + slope_loss
 
-        if fold == 'train':
+        if subset == 'train':
             self.train_outputs.append(loss)
             self.log("train_loss", loss, prog_bar=True)
-        elif fold == 'test':
+        elif subset == 'test':
             self.test_outputs.append(loss)
-        elif fold == 'val':
+        elif subset == 'val':
             self.val_outputs.append(loss)
         return {"loss": loss}
-
-
-
+    
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, 'train', batch_idx)
+    
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, 'val', batch_idx)
+    
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, 'test', batch_idx)
+    
 
 class ChirpTextureData(Dataset):
     def __init__(self, df, seed):
@@ -154,28 +157,33 @@ class ChirpTextureData(Dataset):
 
 class ChirpTextureDataModule(pl.LightningDataModule):
     def __init__(self, *, n_densities, n_slopes, n_folds, batch_size):
+        self.n_densities = n_densities
+        self.n_slopes = n_slopes
+        self.n_folds = n_folds
+        self.batch_size = batch_size
+
         slopes = torch.linspace(-1, 1, n_slopes + 2)[1:-1]
         densities = torch.linspace(0, 1, n_densities + 2)[1:-1]
 
         thetas = list(itertools.product(densities, slopes))
         df = pd.DataFrame(thetas, columns=["density", "slope"])
-
         folds = torch.linspace(0, n_folds, len(df)).int()
         n_thetas = len(thetas)
         random_state = np.random.RandomState(seed=42)
         shuffling_idx = random_state.permutation(n_thetas)
         df["fold"] = folds[shuffling_idx]
+        self.df = df
 
-        train_df = df[df["fold"] < (n_folds - 2)]
+    def setup(self, stage=None):
+
+        train_df = self.df[self.df["fold"] < (self.n_folds - 2)]
         self.train_ds = ChirpTextureData(train_df, seed=None)
 
-        val_df = df[df["fold"] == (n_folds - 2)]
+        val_df = self.df[self.df["fold"] == (self.n_folds - 2)]
         self.val_ds = ChirpTextureData(val_df, seed=42)
         
-        test_df = df[df["fold"] > (n_folds - 2)]
+        test_df = self.df[self.df["fold"] > (self.n_folds - 2)]
         self.test_ds = ChirpTextureData(test_df, seed=42)
-
-        self.batch_size = batch_size
 
     def train_dataloader(self):
         return DataLoader(self.train_ds, batch_size=self.batch_size, shuffle=True)
