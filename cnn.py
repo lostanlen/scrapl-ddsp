@@ -1,10 +1,15 @@
 import auraloss
+import itertools
+
 import loss
 import metrics
+import numpy as np
+import pandas as pd
 import pytorch_lightning as pl
 import torch
 from torch import nn
 from torch import functional as F
+from torch.utils.data import Dataset, DataLoader
 import torchvision
 
 
@@ -56,3 +61,41 @@ class EffNet(pl.LightningModule):
         x = self.conv2d(x)
         x = self.model(x)
         return x
+    
+
+class ChirpTextureDataModule(pl.LightningDataModule):
+    def __init__(self, *,
+                n_densities,
+                n_slopes,
+                n_folds,
+                J,
+                Q,
+                sr,
+                batch_size):
+        slopes = torch.linspace(-1, 1, n_slopes+2)[1:-1]
+        densities = torch.linspace(0, 1, n_densities+2)[1:-1]
+
+        thetas = list(itertools.product(slopes, densities))
+        df = pd.DataFrame(thetas, columns=["slope", "density"])
+
+        folds = torch.linspace(0, len(df), n_folds+1).int()
+        shuffling_idx = np.random.RandomState(seed=42).permutation(10)
+        df["subset"] = folds[shuffling_idx]
+
+        self.train_df = df[df["subset"] < (n_folds-2)]
+        self.val_df = df[df["subset"] == (n_folds-2)]
+        self.test_df = df[df["subset"] == (n_folds-1)]
+
+        self.J = J
+        self.Q = Q
+        self.sr = sr
+        self.batch_size = batch_size
+
+    def train_dataloader(self):
+        return DataLoader(self.train_ds, batch_size=self.batch_size, shuffle=True)
+    
+    def val_dataloader(self):
+        return DataLoader(self.val_ds, batch_size=self.batch_size, shuffle=False)
+    
+    def test_dataloader(self):
+        return DataLoader(self.test_ds, batch_size=self.batch_size, shuffle=False)
