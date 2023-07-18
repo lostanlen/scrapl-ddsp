@@ -115,6 +115,9 @@ class ChirpTextureData(Dataset):
         )
         U = self.cqt_from_x(x)
         return {'feature': U, 'density': theta_density, 'slope': theta_slope}
+    
+    def __len__(self):
+        return len(self.df)
 
     def cqt_from_x(self, x):
         CQT_x = self.cqt_from_x(x).abs()
