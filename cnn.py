@@ -82,15 +82,20 @@ class ChirpTextureData(Dataset):
         self.fmin = 2**8
         self.fmax = 2**11
         self.n_events = 2**6
+        self.sr = 2**13
      
         # define CQT closure
         cqt_params = {
             'sr': self.sr,
+            'bins_per_octave': self.Q,
             'n_bins': self.J * self.Q,
             'hop_length': self.hop_length,
-            'fmin': (0.4*cqt_params['sr']) / (2**self.J)
+            'fmin': (0.4*self.sr) / (2**self.J)
         }   
-        self.cqt_from_x = CQT(**cqt_params).cuda()
+        if torch.cuda.is_available():
+            self.cqt_from_x = CQT(**cqt_params).cuda()
+        else:
+            self.cqt_from_x = CQT(**cqt_params)
 
     def __getitem__(self, idx):
         theta_density = self.df.iloc[idx]["density"]
