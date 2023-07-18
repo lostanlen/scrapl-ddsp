@@ -16,7 +16,7 @@ import synth
 
 
 class EffNet(pl.LightningModule):
-    def __init__(self, loss_type, outdim, save_path, steps_per_epoch):
+    def __init__(self, loss_type, save_path, steps_per_epoch):
         super().__init__()
         self.batchnorm1 = nn.BatchNorm2d(
             1, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True
@@ -24,23 +24,22 @@ class EffNet(pl.LightningModule):
 
         # adapt to EfficientNet's mandatory 3 input channels
         self.conv2d = nn.Conv2d(in_channels=1, out_channels=3, kernel_size=(1, 1))
-        self.model = torchvision.models.efficientnet_b0(num_classes=outdim)
+        self.effnet = torchvision.models.efficientnet_b0(num_classes=2)
         self.n_batches_train = steps_per_epoch
 
         self.loss_type = loss_type
-        if self.loss_type == "ploss":
-            self.loss = F.mse_loss
-        elif self.loss_type == "mss":
-            self.loss = loss.loss_spec
-            self.specloss = auraloss.freq.MultiResolutionSTFTLoss()
-        elif self.loss_type == "jtfs":
-            self.loss = loss.TimeFrequencyScatteringLoss()
+        # if self.loss_type == "ploss":
+        #     self.loss = F.mse_loss
+        # elif self.loss_type == "mss":
+        #     self.loss = loss.loss_spec
+        #     self.specloss = auraloss.freq.MultiResolutionSTFTLoss()
+        # elif self.loss_type == "jtfs":
+        #     self.loss = loss.TimeFrequencyScatteringLoss()
         # TODO: VGGish loss
 
         self.save_path = save_path
 
         self.val_loss = None
-        self.outdim = outdim
 
         self.metric_macro = metrics.JTFSloss(self.scaler)
         self.metric_mss = metrics.MSSloss(self.scaler)
@@ -62,8 +61,34 @@ class EffNet(pl.LightningModule):
         input_tensor = input_tensor.unsqueeze(1)
         x = self.batchnorm1(input_tensor)
         x = self.conv2d(x)
-        x = self.model(x)
-        return x
+        x = self.effnet(x)
+        density = torch.sigmoid(x[:, 0])
+        slope = torch.tanh(x[:, 1])
+        return {"density": density, "slope": slope}
+    
+    def step(self, batch, fold, batch_idx):
+        U = batch["feature"].to(self.current_device)
+        density = batch["density"].to(self.current_device)
+        slope = batch["slope"].to(self.current_device)
+
+        theta_pred = self(U)
+        density_pred = theta_pred["density"]
+        slope_pred = theta_pred["slope"]
+        if self.loss_type == "ploss":
+            density_loss = F.mse_loss(density_pred, density)
+            slope_loss = F.mse_loss(slope_pred, slope)
+            loss = density_loss + slope_loss
+
+        if fold == 'train':
+            self.train_outputs.append(loss)
+            self.log("train_loss", loss, prog_bar=True)
+        elif fold == 'test':
+            self.test_outputs.append(loss)
+        elif fold == 'val':
+            self.val_outputs.append(loss)
+        return {"loss": loss}
+
+
 
 
 class ChirpTextureData(Dataset):
