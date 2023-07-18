@@ -41,7 +41,7 @@ def generate_chirp_texture(
     seed,
 ):
     # Set random seed
-    random_state = np.RandomState(seed)
+    random_state = np.random.RandomState(seed)
 
     # Define constant log(2)
     const_log2 = torch.log(torch.tensor(2.0))
