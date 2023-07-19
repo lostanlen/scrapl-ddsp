@@ -24,7 +24,7 @@ def get_slope(theta_slope, Q, hop_length, sr):
     theta_slope = 0 corresponds to a horizontal line.
     The output is measured in octaves per second."""
     typical_slope = sr / (Q * hop_length)
-    return torch.tan(theta_slope * np.pi/2) * typical_slope/8
+    return torch.tan(theta_slope * np.pi/2) * typical_slope/4
 
 def generate_chirp_texture(
     theta_density,
@@ -53,8 +53,9 @@ def generate_chirp_texture(
     gamma = get_slope(theta_slope, Q, hop_length, sr)
 
     # Draw onsets at random
-    chirp_duration = 2 * event_duration / (torch.abs(theta_slope) + 0.25)
-    chirp_length = torch.tensor(chirp_duration * sr).type(torch.int64)
+    chirp_duration = event_duration
+    #chirp_duration = 2 * event_duration / (torch.abs(theta_slope) + 0.25)
+    chirp_length = torch.tensor(chirp_duration * sr).int()
     rand_onsets = torch.from_numpy(random_state.rand(n_events))
     onsets = rand_onsets * (duration*sr/2-chirp_length) + duration * sr / 4
     onsets = torch.floor(onsets).type(torch.int64)
@@ -80,9 +81,12 @@ def generate_chirp_texture(
             phase = torch.expm1(gamma*const_log2*time) / (gamma*const_log2)
         chirp = torch.sin(2 * torch.pi * frequency * phase)
         offset = onset + chirp_length
-        X[onset:offset, event_id] = chirp * amplitude * envelope
+        X[onset:offset, event_id] = chirp * amplitude * envelope * torch.sqrt(frequency)
 
     # Mix events
     x = X.sum(axis=-1)
+
+    # Renormalize
+    x = x / torch.norm(x)
 
     return x
