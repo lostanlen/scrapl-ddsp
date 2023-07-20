@@ -2,15 +2,6 @@ import numpy as np
 from scipy.signal.windows import tukey
 import torch
 
-# duration = 4
-# event_duration = 2**(-4)
-# sr = 2**13
-# fmin = 2**8
-# fmax = 2**11
-# Q = 24
-# hop_length = 2**6
-# n_events = 2**6
-
 def get_amplitudes(theta_density, n_events):
     offset = 0.25 * theta_density + 0.75 * theta_density**2
     event_ids = torch.tensor(np.arange(n_events)).type(torch.float32)
