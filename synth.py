@@ -2,6 +2,24 @@ import numpy as np
 from scipy.signal.windows import tukey
 import torch
 
+def gaussian(M, std, sym=True):
+    ''' Gaussian window converted from scipy.signal.gaussian
+    '''
+    if M < 1:
+        return torch.array([])
+    if M == 1:
+        return torch.ones(1, 'd')
+    odd = M % 2
+    if not sym and not odd:
+        M = M + 1
+    n = torch.arange(0, M) - (M - 1.0) / 2.0
+    
+    sig2 = 2 * std * std
+    w = torch.exp(-n ** 2 / sig2)
+    if not sym and not odd:
+        w = w[:-1]
+    return w
+
 def get_amplitudes(theta_density, n_events):
     offset = 0.25 * theta_density + 0.75 * theta_density**2
     event_ids = torch.tensor(np.arange(n_events)).type(torch.float32)
@@ -45,7 +63,6 @@ def generate_chirp_texture(
 
     # Draw onsets at random
     chirp_duration = event_duration
-    #chirp_duration = 2 * event_duration / (torch.abs(theta_slope) + 0.25)
     chirp_length = torch.tensor(chirp_duration * sr).int()
     rand_onsets = torch.from_numpy(random_state.rand(n_events))
     onsets = rand_onsets * (duration*sr/2-chirp_length) + duration * sr / 4
@@ -61,9 +78,12 @@ def generate_chirp_texture(
     # Generate events one by one
     X = torch.zeros(duration*sr, n_events)
     time = torch.arange(chirp_length)/sr - chirp_duration/2
-    envelope = torch.tensor(tukey(chirp_length))
     event_ids = torch.arange(n_events)
     patch_zip = zip(event_ids, onsets, amplitudes, frequencies)
+
+    # Define envelope
+    sigma_window = 0.1
+    envelope = gaussian(chirp_length, sigma_window)
 
     for event_id, onset, amplitude, frequency in patch_zip:
         if torch.abs(gamma) < 1e-6:
