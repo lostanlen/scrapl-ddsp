@@ -2,7 +2,7 @@
 #SBATCH --job-name=script_jacobian,density_idx-5,slope_idx-4,seed-4
 #SBATCH --output=jobs/script_jacobian/slurm/slurm_%j__script_jacobian,density_idx-5,slope_idx-4,seed-4.log
 #SBATCH --time=2:00:00
-#SBATCH --mem=16G
+#SBATCH --mem=32G
 
 
 #########################
