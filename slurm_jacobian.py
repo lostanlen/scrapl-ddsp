@@ -2,7 +2,7 @@ import os
 import slurmjobs
 
 jobs = slurmjobs.Singularity(
-    "python main.py",
+    "python script_jacobian.py",
     f'/scratch/{os.getenv("USER")}/ic24_overlay-15GB-500K.ext3',
     "cuda11.8.86-cudnn8.7-devel-ubuntu22.04.2.sif",
     email='',
@@ -25,7 +25,7 @@ run_script, job_paths = jobs.generate(
     [
         ("density_idx", range(7)),
         ("slope_idx", range(7)),
-        ("seed", range(5)),
+        ("seed", range(10)),
     ],
     sav_dir=sav_dir,
 )
