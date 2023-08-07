@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=script_jacobian,density_idx-0,slope_idx-0,seed-6
 #SBATCH --output=jobs/script_jacobian/slurm/slurm_%j__script_jacobian,density_idx-0,slope_idx-0,seed-6.log
-#SBATCH --time=2:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=32G
 
 
