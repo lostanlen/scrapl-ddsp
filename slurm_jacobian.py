@@ -4,7 +4,7 @@ import slurmjobs
 jobs = slurmjobs.Singularity(
     "python script_jacobian.py",
     f'/scratch/{os.getenv("USER")}/ic24_overlay-15GB-500K.ext3',
-    "cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif",
+    "/scratch/work/public/singularity/cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif",
     email='',
     sbatch=dict(time="2:00:00"),
     template="""{% extends 'job.singularity.j2' %}

@@ -22,7 +22,7 @@
 ###### ( hop into the singularity o_O )
 singularity exec  \
     --overlay /scratch/user/ic24_overlay-15GB-500K.ext3:ro \
-    cuda11.8.86-cudnn8.7-devel-ubuntu22.04.2.sif \
+    /scratch/work/public/singularity/cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif \
     /bin/bash << EOF
 echo "@: entered singularity container"
 
