@@ -78,15 +78,24 @@ def run(density_idx, slope_idx, seed, sav_dir, job_id):
     S_closure = lambda theta: S_from_theta(theta, sc, dataset, seed)
     J = torch.autograd.functional.jacobian(S_closure, theta)
 
+    # save the coefficients to sav_dir with formatted name
+    jtfs_name = "jtfs_density-{}_slope-{}_seed-{}.pt".format(
+        density_idx, slope_idx, seed)
+    jtfs_dir = os.path.join(sav_dir, "jtfs_7x7")
+    os.makedirs(jtfs_dir, exist_ok=True)
+    jtfs_path = os.path.join(jtfs_dir, jtfs_name)
+    torch.save(S_closure(theta), jtfs_path)
+
     # save the Jacobian to sav_dir with formatted name
-    sav_name = "jacobian_density-{}_slope-{}_seed-{}.pt".format(
+    jac_name = "jacobian_density-{}_slope-{}_seed-{}.pt".format(
         density_idx, slope_idx, seed)
     jac_dir = os.path.join(sav_dir, "jacobians_7x7")
     os.makedirs(jac_dir, exist_ok=True)
-    sav_path = os.path.join(jac_dir, sav_name)
-    torch.save(J.squeeze(), sav_path)
+    jac_path = os.path.join(jac_dir, jac_name)
+    torch.save(J.squeeze(), jac_path)
 
-    print("Jacobian saved at: {}".format(sav_path))
+    print("Coefficients saved at: {}".format(jtfs_path))
+    print("Jacobian saved at: {}".format(jac_path))
     print("\n")
 
     # Print elapsed time.
