@@ -10,7 +10,7 @@
 # Args: 
 # {'density_idx': 2,
 #  'job_id': 'script_jacobian,density_idx-2,slope_idx-5,seed-0',
-#  'sav_dir': '/scratch/user/icassp2024_scrapl_data',
+#  'sav_dir': '/scratch/vl1019/icassp2024_scrapl_data',
 #  'seed': 0,
 #  'slope_idx': 5}
 #
@@ -21,7 +21,7 @@
 
 ###### ( hop into the singularity o_O )
 singularity exec  \
-    --overlay /scratch/user/ic24_overlay-15GB-500K.ext3:ro \
+    --overlay /scratch/vl1019/ic24_overlay-15GB-500K.ext3:ro \
     /scratch/work/public/singularity/cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif \
     /bin/bash << EOF
 echo "@: entered singularity container"
@@ -42,7 +42,7 @@ python script_jacobian.py \
     --density_idx=2 \
     --slope_idx=5 \
     --seed=0 \
-    --sav_dir=/scratch/user/icassp2024_scrapl_data \
+    --sav_dir=/scratch/vl1019/icassp2024_scrapl_data \
     --job_id=script_jacobian,density_idx-2,slope_idx-5,seed-0
 
 
