@@ -2,15 +2,34 @@
 This script computes the Jacobian of (Phi \circ g)
 for one random seed of the chirp texture dataset.
 """
+import datetime
 import fire
+import kymatio
 from kymatio.torch import TimeFrequencyScattering
 import os
+import sys
+import time
 import torch
 
 import cnn
 import synth
 
-def run(density_idx, slope_idx, seed, sav_dir):
+def run(density_idx, slope_idx, seed, sav_dir, job_id):
+    # Print header
+    start_time = int(time.time())
+    print("Job ID: " + str(job_id))
+    print(str(datetime.datetime.now()) + " Start.")
+    print(__doc__ + "\n")
+    print("density_idx: " + str(density_idx))
+    print("slope_idx: " + str(slope_idx))
+    print("seed: " + str(seed))
+
+    # Print version numbers
+    for module in [kymatio, torch]:
+        print("{} version: {:s}".format(module.__name__, module.__version__))
+    print("")
+    sys.stdout.flush()
+
     dataset = cnn.ChirpTextureDataModule(
         n_densities=7,
         n_slopes=7,
