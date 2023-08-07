@@ -23,11 +23,12 @@ def run(density_idx, slope_idx, seed, sav_dir, job_id):
     print("density_idx: " + str(density_idx))
     print("slope_idx: " + str(slope_idx))
     print("seed: " + str(seed))
+    print("\n")
 
     # Print version numbers
     for module in [kymatio, torch]:
         print("{} version: {:s}".format(module.__name__, module.__version__))
-    print("")
+    print("\n")
     sys.stdout.flush()
 
     dataset = cnn.ChirpTextureDataModule(
