@@ -7,7 +7,7 @@ jobs = slurmjobs.Singularity(
     f'/scratch/{username}/ic24_overlay-15GB-500K.ext3',
     "/scratch/work/public/singularity/cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif",
     email='',
-    sbatch=dict(time="2:00:00", mem="32G"),
+    sbatch=dict(time="12:00:00", mem="32G"),
     template="""{% extends 'job.singularity.j2' %}
       
 {% block main %}
