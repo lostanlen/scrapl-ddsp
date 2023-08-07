@@ -85,6 +85,20 @@ def run(density_idx, slope_idx, seed, sav_dir, job_id):
     sav_path = os.path.join(jac_dir, sav_name)
     torch.save(J.squeeze(), sav_path)
 
+    print("Jacobian saved at: {}".format(sav_path))
+    print("\n")
+
+    # Print elapsed time.
+    print(str(datetime.datetime.now()) + " Success.")
+    elapsed_time = time.time() - int(start_time)
+    elapsed_hours = int(elapsed_time / (60 * 60))
+    elapsed_minutes = int((elapsed_time % (60 * 60)) / 60)
+    elapsed_seconds = elapsed_time % 60.0
+    elapsed_str = "{:>02}:{:>02}:{:>05.2f}".format(
+        elapsed_hours, elapsed_minutes, elapsed_seconds
+    )
+    print("Total elapsed time: " + elapsed_str + ".")
+
 
 if __name__ == '__main__':
     fire.Fire(run)
