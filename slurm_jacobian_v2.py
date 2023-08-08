@@ -26,7 +26,7 @@ run_script, job_paths = jobs.generate(
     [
         ("density_idx", [0, 1, 2, 4, 5, 6]),
         ("slope_idx", [3]),
-        ("seed", range(11, 256)),
+        ("seed", range(192, 256)),
     ],
     sav_dir=sav_dir,
 )
