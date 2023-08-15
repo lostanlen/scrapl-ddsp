@@ -86,10 +86,8 @@ def generate_chirp_texture(
     envelope = gaussian(chirp_length, sigma_window)
 
     for event_id, onset, amplitude, frequency in patch_zip:
-        if torch.abs(gamma) < 1e-6:
-            phase = time
-        else:
-            phase = torch.expm1(gamma*const_log2*time) / (gamma*const_log2)
+        phase = torch.expm1(gamma*const_log2*time) / (gamma*const_log2)
+        phase[torch.isnan(phase)] = time[torch.isnan(phase)]
         chirp = torch.sin(2 * torch.pi * frequency * phase)
         offset = onset + chirp_length
         X[onset:offset, event_id] = chirp * amplitude * envelope * torch.sqrt(frequency)
