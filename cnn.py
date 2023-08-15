@@ -1,7 +1,6 @@
 import auraloss
 import itertools
-import loss
-import metrics
+from kymatio.torch import TimeFrequencyScattering
 from nnAudio.features import CQT
 import numpy as np
 import pandas as pd
@@ -12,11 +11,25 @@ from torch.nn import functional as F
 from torch.utils.data import Dataset, DataLoader
 import torchvision
 
+import loss
 import synth
 
 
 class EffNet(pl.LightningModule):
     def __init__(self, loss_type, save_path, steps_per_epoch):
+        self.seed = None
+        self.J = 5
+        self.Q = 24
+        self.sr = 2**13
+        self.hop_length = 2**6
+        self.cqt_epsilon = 1e-3
+        self.duration = 4
+        self.event_duration = 2**(-2)
+        self.fmin = 2**8
+        self.fmax = 2**11
+        self.n_events = 2**6
+        self.sr = 2**13
+    
         super().__init__()
         self.batchnorm1 = nn.BatchNorm2d(
             1, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True
@@ -32,14 +45,28 @@ class EffNet(pl.LightningModule):
         self.n_batches_train = steps_per_epoch
 
         self.loss_type = loss_type
-        # if self.loss_type == "ploss":
-        #     self.loss = F.mse_loss
-        # elif self.loss_type == "mss":
-        #     self.loss = loss.loss_spec
-        #     self.specloss = auraloss.freq.MultiResolutionSTFTLoss()
-        # elif self.loss_type == "jtfs":
-        #     self.loss = loss.TimeFrequencyScatteringLoss()
-        # TODO: VGGish loss
+        if self.loss_type == "mss":
+            self.spectral_distance = auraloss.freq.MultiResolutionSTFTLoss()
+        elif self.loss_type == "jtfs":
+            self.jtfs = TimeFrequencyScattering(
+                shape=(2**15),
+                J=6,
+                Q=(24, 2),
+                Q_fr=2,
+                J_fr=5,
+                T='global',
+                F='global',
+                format='time',
+            )
+            def jtfs_distance(x, x_pred):
+                Sx = self.jtfs(x)[1:]
+                Sx_pred = self.jtfs(x_pred)[1:]
+                return torch.linalg.vector_norm(Sx - Sx_pred, p=2, dim=1)
+            self.spectral_distance = jtfs_distance
+        elif self.loss_type == "scrapl":
+            pass
+            
+        # TODO: Open-L3 loss
 
         self.save_path = save_path
         self.val_loss = None
@@ -83,6 +110,18 @@ class EffNet(pl.LightningModule):
             density_loss = F.mse_loss(density_pred, density)
             slope_loss = F.mse_loss(slope_pred, slope)
             loss = density_loss + slope_loss
+        else: # spectral loss
+            x, x_pred = [], []
+            for i in range(U.shape[0]):
+                x.append(self.x_from_theta(density[i], slope[i]))
+                x_pred.append(self.x_from_theta(density_pred[i], slope_pred[i]))
+            x = torch.stack(x)
+            x_pred = torch.stack(x_pred)
+            if self.loss_type == "mss":
+                loss = self.spectral_distance(
+                    x.unsqueeze(1), x_pred.unsqueeze(1))
+            elif self.loss_type == "jtfs":
+                loss = self.spectral_distance(x, x_pred)
 
         if subset == 'train':
             self.train_outputs.append(loss)
@@ -117,6 +156,21 @@ class EffNet(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters())
+    
+    def x_from_theta(self, theta_density, theta_slope):
+        return synth.generate_chirp_texture(
+            theta_density,
+            theta_slope,
+            duration=self.duration,
+            event_duration=self.event_duration,
+            sr=self.sr,
+            fmin=self.fmin,
+            fmax=self.fmax,
+            n_events=self.n_events,
+            Q=self.Q,
+            hop_length=self.hop_length,
+            seed=self.seed)
+            
     
 
 class ChirpTextureData(Dataset):
