@@ -120,12 +120,10 @@ class EffNet(pl.LightningModule):
     
 
 class ChirpTextureData(Dataset):
-    def __init__(self, df, seed):
+    def __init__(self, df):
         super().__init__()
 
         self.df = df
-        self.seed = seed
-
         self.J = 5
         self.Q = 24
         self.sr = 2**13
@@ -157,6 +155,7 @@ class ChirpTextureData(Dataset):
             self.df.iloc[idx]["density"], dtype=torch.float32)
         theta_slope = torch.tensor(
             self.df.iloc[idx]["slope"], dtype=torch.float32)
+        seed = self.df.iloc[idx]["seed"]
 
         x = synth.generate_chirp_texture(
             theta_density,
@@ -169,7 +168,7 @@ class ChirpTextureData(Dataset):
             n_events=self.n_events,
             Q=self.Q,
             hop_length=self.hop_length,
-            seed=self.seed,
+            seed=seed,
         )
         U = self.cqt_from_x(x)
         return {'feature': U, 'density': theta_density, 'slope': theta_slope}
@@ -186,40 +185,40 @@ class ChirpTextureData(Dataset):
         
 
 class ChirpTextureDataModule(pl.LightningDataModule):
-    def __init__(self, *, n_densities, n_slopes, n_folds, batch_size):
+    def __init__(self, *, n_densities, n_slopes, n_seeds_per_fold, n_folds, batch_size):
         super().__init__() 
 
         self.n_densities = n_densities
         self.n_slopes = n_slopes
+        self.n_seeds_per_fold = n_seeds_per_fold
         self.n_folds = n_folds
         self.batch_size = batch_size
 
         slope_idx = np.arange(n_slopes)
         density_idx = np.arange(n_densities)
-        theta_idx = list(itertools.product(density_idx, slope_idx))
-        df_idx = pd.DataFrame(theta_idx, columns=["density_idx", "slope_idx"])
+        seeds = np.arange(n_seeds_per_fold*n_folds)
+
+        theta_idx = list(itertools.product(density_idx, slope_idx, seeds))
+        df_idx = pd.DataFrame(theta_idx, columns=["density_idx", "slope_idx", "seed"])
         slopes = np.linspace(-1, 1, n_slopes + 2)[1:-1]
         densities = np.linspace(0, 1, n_densities + 2)[1:-1]
         thetas = list(itertools.product(densities, slopes))
         df = pd.DataFrame(thetas, columns=["density", "slope"])
         df = df_idx.merge(df, left_index=True, right_index=True)
 
-        folds = np.floor(np.linspace(0, n_folds, len(df), endpoint=False))
-        n_thetas = len(thetas)
-        random_state = np.random.RandomState(seed=42)
-        shuffling_idx = random_state.permutation(n_thetas)
-        df["fold"] = folds[shuffling_idx].astype('int')
+        folds = seeds % n_folds
+        df["fold"] = folds
         self.df = df
 
     def setup(self, stage=None):
         train_df = self.df[self.df["fold"] < (self.n_folds - 2)]
-        self.train_ds = ChirpTextureData(train_df, seed=None)
+        self.train_ds = ChirpTextureData(train_df)
 
         val_df = self.df[self.df["fold"] == (self.n_folds - 2)]
-        self.val_ds = ChirpTextureData(val_df, seed=42)
+        self.val_ds = ChirpTextureData(val_df)
         
         test_df = self.df[self.df["fold"] == (self.n_folds - 1)]
-        self.test_ds = ChirpTextureData(test_df, seed=42)
+        self.test_ds = ChirpTextureData(test_df)
 
     def train_dataloader(self):
         return DataLoader(self.train_ds, batch_size=self.batch_size, shuffle=True)
