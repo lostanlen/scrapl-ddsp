@@ -256,11 +256,12 @@ class ChirpTextureDataModule(pl.LightningDataModule):
         df_idx = pd.DataFrame(theta_idx, columns=["density_idx", "slope_idx", "seed"])
         slopes = np.linspace(-1, 1, n_slopes + 2)[1:-1]
         densities = np.linspace(0, 1, n_densities + 2)[1:-1]
-        thetas = list(itertools.product(densities, slopes))
-        df = pd.DataFrame(thetas, columns=["density", "slope"])
+        thetas = list(itertools.product(densities, slopes, seeds))
+        df = pd.DataFrame(thetas, columns=["density", "slope", "seeds_bis"])
+        del df["seeds_bis"]
         df = df_idx.merge(df, left_index=True, right_index=True)
 
-        folds = seeds % n_folds
+        folds = df["seed"] % n_folds
         df["fold"] = folds
         self.df = df
 
