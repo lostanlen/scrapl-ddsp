@@ -5,6 +5,7 @@ from nnAudio.features import CQT
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
+from scrapl.torch import TimeFrequencyScrapl
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -64,8 +65,24 @@ class EffNet(pl.LightningModule):
                 return torch.linalg.vector_norm(Sx - Sx_pred, p=2, dim=1)
             self.spectral_distance = jtfs_distance
         elif self.loss_type == "scrapl":
-            pass
-            
+            self.scrapl = TimeFrequencyScrapl(
+                shape=(2**15),
+                J=6,
+                Q=(24, 2),
+                Q_fr=2,
+                J_fr=5,
+                T='global',
+                F='global',
+            )
+            scrapl_meta = self.scrapl.meta()
+            self.scrapl_keys = [key for key in scrapl_meta["key"] if len(key)==2]
+            def scrapl_distance(x, x_pred):
+                n2, n_fr = np.random.choice(self.scrapl_keys)
+                Sx = self.scrapl.scattering_singlepath(x, n2, n_fr)
+                Sx_pred = self.scrapl.scattering_singlepath(x_pred, n2, n_fr)
+                return torch.linalg.vector_norm(Sx - Sx_pred, p=2, dim=1)
+            self.spectral_distance = scrapl_distance
+
         # TODO: Open-L3 loss
 
         self.save_path = save_path
