@@ -13,9 +13,10 @@ import sys
 def run(loss_type, sav_dir, job_id):
     # Print header
     start_time = int(time.time())
-    print("Job ID: " + str(job_id))
     print(str(datetime.datetime.now()) + " Start.")
     print(__doc__ + "\n")
+    print("Loss type: " + loss_type)
+    print("Save directory: " + sav_dir)
     print("Job ID: " + str(job_id))
     print("\n")
 
@@ -38,10 +39,8 @@ def run(loss_type, sav_dir, job_id):
 
     dataset.setup()
 
-    epoch_max = 20
     samples_per_epoch = 768
     steps_per_epoch = samples_per_epoch / dataset.batch_size 
-    max_steps = steps_per_epoch * epoch_max
 
     steps_per_epoch = 1
     models_dir = os.path.join(sav_dir, "models_{}".format(loss_type))
@@ -51,15 +50,9 @@ def run(loss_type, sav_dir, job_id):
     tb_logger = pl_loggers.TensorBoardLogger(save_dir=logs_dir)
 
     trainer = pl.Trainer(
-            #accelerator="cpu",
-            devices=1,
-            max_epochs=epoch_max,
-            max_steps=max_steps,
+            max_epochs=-1,
             limit_train_batches=steps_per_epoch,
-            limit_val_batches=1.0,
-            limit_test_batches=1.0,
             callbacks=[],
-            enable_progress_bar=True,
             logger=tb_logger,
             max_time=timedelta(hours=12)
         )
